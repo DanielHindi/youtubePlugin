@@ -345,6 +345,20 @@
         Location.goTo("#/video/" + video.snippet.resourceId.videoId);
       };
 
+      
+
+      WidgetFeed.navigateTo = function (video) {
+        var pluginData = WidgetFeed.data.content.pluginInstance;
+        if (!pluginData) {
+          return;
+        }
+        var videoId = video.snippet.resourceId.videoId;
+        var queryString = `?vidId=${videoId}`;
+        pluginData.queryString = queryString;
+        Buildfire.navigation.navigateTo(pluginData);
+      };
+
+
       WidgetFeed.getThumbnail = function(video) {
         var isTablet = $rootScope.deviceWidth >= 768;
         if (isTablet) {

@@ -25,7 +25,7 @@
       <div
         class="list-item col-xs-6 col-md-4 pull-left"
         ng-repeat="video in WidgetFeed.videos track by video.id"
-        ng-click="WidgetFeed.openDetailsPage(video)"
+        ng-click="WidgetFeed.navigateTo(video)"
         ng-class="{'viewed': video.viewed}"
         trigger-ng-repeat-render
       >
@@ -60,7 +60,7 @@
             <a
               class="text-primary"
               href="javascript:void(0)"
-              ng-click="WidgetFeed.openDetailsPage(video)"
+              ng-click="WidgetFeed.navigateTo(video)"
               >{{::video.snippet.title}}</a
             >
           </p>

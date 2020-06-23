@@ -27,7 +27,7 @@
     >
       <div
         class="list-item"
-        ng-click="WidgetFeed.openDetailsPage(video)"
+        ng-click="WidgetFeed.navigateTo(video)"
         ng-repeat="video in WidgetFeed.videos track by video.id"
         ng-class="{'viewed': video.viewed}"
         trigger-ng-repeat-render
@@ -42,7 +42,7 @@
           </div>
           <a
             href="javascript:void(0)"
-            ng-click="WidgetFeed.openDetailsPage(video)"
+            ng-click="WidgetFeed.navigateTo(video)"
           >
             <img
               load-image="16x9"

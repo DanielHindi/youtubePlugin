@@ -27,7 +27,7 @@
         class="list-item col-xs-6 col-md-4 pull-left video-box"
         ng-repeat="video in WidgetFeed.videos track by video.id"
         ng-class="{'viewed': video.viewed}"
-        ng-click="WidgetFeed.openDetailsPage(video)"
+        ng-click="WidgetFeed.navigateTo(video)"
         trigger-ng-repeat-render
       >
         <div class="list-item-media text-center overflow-hidden">
@@ -48,7 +48,7 @@
             <a
               class="link-image-wrapper"
               href="javascript:void(0)"
-              ng-click="WidgetFeed.openDetailsPage(video)"
+              ng-click="WidgetFeed.navigateTo(video)"
             >
               <img
                 class="video-thumb"

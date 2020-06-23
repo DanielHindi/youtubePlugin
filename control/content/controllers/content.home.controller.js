@@ -39,7 +39,8 @@
           rssUrl: TAG_NAMES.DEFAULT_FEED_URL,
           type: "",
           playListID: null,
-          videoID: null
+          videoID: null,
+          pluginInstance: null,
         },
         design: {
           itemListLayout: LAYOUTS.listLayouts[0].name,
@@ -54,9 +55,9 @@
       //ContentHome.data = angular.copy(_data);
       ContentHome.validLinkSuccess = false;
       ContentHome.validLinkFailure = false;
-      ContentHome.contentType = CONTENT_TYPE.CHANNEL_FEED;
+      ContentHome.contentType = CONTENT_TYPE.PLAYLIST_FEED;
+      ContentHome.pluginInstanceName = '';
       ContentHome.failureMessage = "Error. Please check and try again";
-
       ContentHome.descriptionWYSIWYGOptions = {
         plugins: "advlist autolink link image lists charmap print preview",
         skin: "lightgray",
@@ -140,6 +141,10 @@
                 ContentHome.contentType = ContentHome.data.content.type;
               if (ContentHome.data.content.rssUrl)
                 ContentHome.rssLink = ContentHome.data.content.rssUrl;
+              if (ContentHome.data.content.pluginInstance) {
+                var pluginInstance = ContentHome.data.content.pluginInstance;
+                ContentHome.pluginInstanceName = pluginInstance.pluginTypeName + ": " + pluginInstance.title;
+              }
               if (!ContentHome.data.content.carouselImages)
                 editor.loadItems([]);
               else editor.loadItems(ContentHome.data.content.carouselImages);
@@ -221,6 +226,7 @@
       // Function to validate youtube rss feed link entered by user.
 
       ContentHome.validateRssLink = function() {
+        let apiKey = buildfire.getContext().apiKeys.googleApiKey;
         switch (ContentHome.contentType) {
           case CONTENT_TYPE.SINGLE_VIDEO:
             var videoID = Utils.extractSingleVideoId(ContentHome.rssLink);
@@ -230,7 +236,7 @@
                   "https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" +
                     videoID +
                     "&key=" +
-                    YOUTUBE_KEYS.API_KEY,
+                    apiKey,
                   { cache: true }
                 )
                 .success(function(response) {
@@ -286,13 +292,13 @@
                   "https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=" +
                   feedIdAndType.channel +
                   "&key=" +
-                  YOUTUBE_KEYS.API_KEY;
+                  apiKey;
               else if (feedIdAndType.user || feedIdAndType.c)
                 feedApiUrl =
                   "https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=" +
                   (feedIdAndType.user || feedIdAndType.c) +
                   "&key=" +
-                  YOUTUBE_KEYS.API_KEY;
+                  apiKey;
               $http
                 .get(feedApiUrl, { cache: true })
                 .success(function(response) {
@@ -400,6 +406,16 @@
               ContentHome.validLinkSuccess = false;
             }
         }
+      };
+
+      $scope.onSelectFeature = function() {
+        Buildfire.pluginInstance.showDialog({}, (error, instances) => {
+          if (instances && instances.length > 0) {
+            ContentHome.pluginInstanceName = instances[0].pluginTypeName + ": " + instances[0].title;
+            ContentHome.data.content.pluginInstance = instances[0];
+            $scope.$digest();
+          } 
+        });
       };
 
       ContentHome.clearData = function() {
