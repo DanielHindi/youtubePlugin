@@ -1,4 +1,4 @@
-# youtubePlugin  ![](https://api.travis-ci.org/BuildFire/youtubePlugin.svg)
+# youtubePlugin  
 BuildFire Plugin to import YouTube videos into your app.
 
 ### Important Note
