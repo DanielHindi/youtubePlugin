@@ -182,7 +182,6 @@
       var getFeedVideosSuccess = function(result) {
         // compare the first item of the cached feed and the fetched feed
         // return if the feed hasnt changed
-
         var isUnchanged =
           WidgetFeed.videos[0] &&
           WidgetFeed.videos[0].id === result.items[0].id;
@@ -217,11 +216,14 @@
       };
 
       var getFeedVideos = function(_playlistId) {
+        let apiKey = buildfire.getContext().apiKeys.googleApiKey;
+
         Buildfire.spinner.show();
         YoutubeApi.getFeedVideos(
           _playlistId,
           VIDEO_COUNT.LIMIT,
-          WidgetFeed.nextPageToken
+          WidgetFeed.nextPageToken,
+          apiKey
         ).then(getFeedVideosSuccess, getFeedVideosError);
       };
 
@@ -361,7 +363,7 @@
 
       WidgetFeed.getThumbnail = function(video) {
         var isTablet = $rootScope.deviceWidth >= 768;
-        if (isTablet) {
+        if (isTablet && video.snippet.thumbnails.maxres) {
           return video.snippet.thumbnails.maxres.url;
         } else {
           return video.snippet.thumbnails.medium.url;

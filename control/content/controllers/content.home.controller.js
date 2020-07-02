@@ -358,7 +358,8 @@
               $http
                 .post(PROXY_SERVER.serverUrl + "/videos", {
                   playlistId: playlistId,
-                  countLimit: 1
+                  countLimit: 1,
+                  apiKey: apiKey
                 })
                 .success(function(response) {
                   ContentHome.failureMessage =

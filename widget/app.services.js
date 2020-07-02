@@ -99,7 +99,7 @@
           return deferred.promise;
         };
 
-        var getFeedVideos = function (playlistId, countLimit, pageToken) {
+        var getFeedVideos = function (playlistId, countLimit, pageToken, apiKey) {
           var deferred = $q.defer();
           var _url = "";
           if (!countLimit)
@@ -113,7 +113,8 @@
             $http.post(getProxyServerUrl() + '/videos', {
               playlistId: playlistId,
               pageToken: pageToken,
-              countLimit: countLimit
+              countLimit: countLimit,
+              apiKey: apiKey? apiKey : ''
             })
               .success(function (response) {
                 if (response.statusCode == 200)
