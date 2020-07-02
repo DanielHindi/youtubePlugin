@@ -14,9 +14,10 @@ var cache = {
         options,
         () => {}
       );
-    } else {
-      indexCache.saveCache(object);
-    }
+    } 
+    // else {
+    //   indexCache.saveCache(object);
+    // }
   },
   getCache: function (callback) {
     //Use filestorage for mobile devices
@@ -36,18 +37,19 @@ var cache = {
           );
         }
       );
-    } else {
-      indexCache.init(
-        {
-          dbName: "youtube.cache",
-          indexName: "feed",
-          objectStoreName: "feed.cache",
-        },
-        function () {
-          indexCache.getCache(callback);
-        }
-      );
     }
+    //  else {
+    //   indexCache.init(
+    //     {
+    //       dbName: "youtube.cache",
+    //       indexName: "feed",
+    //       objectStoreName: "feed.cache",
+    //     },
+    //     function () {
+    //       indexCache.getCache(callback);
+    //     }
+    //   );
+    // }
   },
 };
 
