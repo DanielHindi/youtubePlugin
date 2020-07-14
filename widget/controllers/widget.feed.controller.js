@@ -49,16 +49,16 @@
       $rootScope.deviceWidth = window.innerWidth || 320;
       WidgetFeed.appHeight = window.innerWidth * (9 / 16);
 
-      var handleBookmarkNav = function handleBookmarkNav(videos) {
-        buildfire.deeplink.getData(function(data) {
-          if (data && data.link) {
-            var video = videos.filter(function(video) {
-              return video.snippet.resourceId.videoId === data.link;
-            })[0];
-            WidgetFeed.openDetailsPage(video);
-          }
-        });
-      };
+      // var handleBookmarkNav = function (videos) {
+      //   buildfire.deeplink.getData(function(data) {
+      //     if (data && data.link) {
+      //       var video = videos.filter(function(video) {
+      //         return video.snippet.resourceId.videoId === data.link;
+      //       })[0];
+      //       WidgetFeed.navigateTo(video);
+      //     }
+      //   });
+      // };
 
       /*
        * Fetch user's data from datastore
@@ -132,9 +132,44 @@
 
         viewedVideos.init();
         initData(isRefresh);
+        rememberScrollPosition('scrollDiv');
       };
 
-      var handleBookmarkNav = function handleBookmarkNav(videos) {
+
+      var  debounce = function(func, wait) {
+        let timeout;
+        return function () {
+          let context = this, args = arguments;
+          let later = function () {
+            timeout = null;
+            func.apply(context, args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      };
+
+      var rememberScrollPosition = function (id) {
+        let element = document.getElementById(id);
+        if (!element) return console.warn(`Element with id "${id}" not found`);
+        element.addEventListener("scroll", debounce(() => {
+          buildfire.localStorage.setItem("scrollTop", element.scrollTop);
+        }, 200));
+      };
+
+      var restoreScrollPosition = function (id) {
+        let element = document.getElementById(id);
+        if (!element) return console.warn(`Element with id "${id}" not found`);
+        buildfire.localStorage.getItem("scrollTop", (err, scrollTop) => {
+          // element.scrollTop = scrollTop || 0;
+          element.scrollTo({
+            top: scrollTop || 0,
+            behavior: 'smooth'
+          });
+        });
+      };
+
+      var handleBookmarkNav = function (videos) {
         buildfire.deeplink.getData(function(data) {
           if (data && data.link) {
             var linkD = data.link;
@@ -145,7 +180,7 @@
               return video.snippet.resourceId.videoId === linkD;
             })[0];
             if (data.timeIndex) video.seekTo = data.timeIndex;
-            WidgetFeed.openDetailsPage(video);
+            WidgetFeed.navigateTo(video);
           }
         });
       };
@@ -208,6 +243,9 @@
           WidgetFeed.busy = false;
         }
         if (!$scope.$$phase) $scope.$digest();
+        setTimeout(function() {
+          restoreScrollPosition('scrollDiv');
+        }, 600);
       };
 
       var getFeedVideosError = function(err) {
@@ -284,8 +322,9 @@
             WidgetFeed.busy = false;
             WidgetFeed.nextPageToken = null;
             WidgetFeed.loadMore();
-          } else if (WidgetFeed.data.content && WidgetFeed.data.content.videoID)
-            Location.goTo("#/video/" + WidgetFeed.data.content.videoID);
+          } else if (WidgetFeed.data.content && WidgetFeed.data.content.videoID) {
+            // Location.goTo("#/video/" + WidgetFeed.data.content.videoID);
+          }
         }
       };
       DataStore.onUpdate().then(null, null, onUpdateCallback);
@@ -295,10 +334,11 @@
         WidgetFeed.busy = true;
         if (currentPlayListId && currentPlayListId !== "1") {
           getFeedVideos(currentPlayListId);
-        } else {
-          if (WidgetFeed.data.content.videoID)
-            Location.goTo("#/video/" + WidgetFeed.data.content.videoID);
-        }
+        };
+        // else {
+        //   if (WidgetFeed.data.content.videoID)
+        //     Location.goTo("#/video/" + WidgetFeed.data.content.videoID);
+        // }
       };
 
       WidgetFeed.safeHtml = function(html) {
@@ -354,6 +394,7 @@
         if (!pluginData) {
           return;
         }
+        viewedVideos.markViewed($scope, video);
         var videoId = video.snippet.resourceId.videoId;
         var queryString = `?vidId=${videoId}`;
         pluginData.queryString = queryString;
