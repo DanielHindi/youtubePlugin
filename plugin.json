@@ -1,8 +1,8 @@
 {
-  "author": "BuildFire",
+  "author": "Madaincorp",
   "pluginName": "Playlist",
   "pluginDescription": "Sync your YouTube channel feed or a single steam video and to give your users a fresh viewing experience. When you upload new videos, they'll automatically be pulled into your app.Related Topics: MP4, Advertising",
-  "supportEmail": "support@buildfire.com",
+  "supportEmail": "support@madaincorp.com",
   "supportSite": "http://learn.appdocumentation.com/plugin-tutorials/youtube-plugin-tutorial/",
   "offlineModeEnabled": true,
   "control": {
@@ -17,6 +17,6 @@
     }
   },
   "widget": {},
-  "features": [],
+  "features": [{"name" : "sharing"}],
   "languages": ["en"]
 }

@@ -429,15 +429,15 @@ ul.lorySlides li img {
 }
 
 /*///////////////// Viewed State /////////////////*/
-.list-item.viewed p,
+/* .list-item.viewed p,
 .list-item.viewed a {
   opacity: 0.7;
-}
+} */
 .list-item .list-media-holder {
   position: relative;
 }
 
-.layout1 .list-item.viewed .list-media-holder::after,
+/* .layout1 .list-item.viewed .list-media-holder::after,
 .layout2 .list-item.viewed .list-media-holder::after,
 .layout3 .list-item.viewed .thumbnail-container::after,
 .layout4 .list-item.viewed .list-media-holder::after {
@@ -449,7 +449,7 @@ ul.lorySlides li img {
   position: absolute;
   top: 0;
   opacity: 0.5;
-}
+} */
 .list-item.viewed span::after {
   content: "\e013";
   font-family: "Glyphicons Halflings";

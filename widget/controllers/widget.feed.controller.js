@@ -1,6 +1,6 @@
 "use strict";
 
-(function(angular, buildfire) {
+(function (angular, buildfire) {
   angular.module("youtubePluginWidget").controller("WidgetFeedCtrl", [
     "$scope",
     "Buildfire",
@@ -14,7 +14,7 @@
     "$rootScope",
     "LAYOUTS",
     "VideoCache",
-    function(
+    function (
       $scope,
       Buildfire,
       DataStore,
@@ -36,6 +36,7 @@
       WidgetFeed.videos = [];
       WidgetFeed.busy = false;
       WidgetFeed.nextPageToken = null;
+      WidgetFeed.totalResults = 0;
       $rootScope.showFeed = true;
       var currentListLayout = null;
       var currentPlayListId = null;
@@ -63,13 +64,13 @@
       /*
        * Fetch user's data from datastore
        */
-      var initData = function(isRefresh) {
-        var success = function(result) {
+      var initData = function (isRefresh) {
+        var success = function (result) {
             cache.getCache(function(err, data) {
               // if the rss feed url has changed, ignore the cache and update when fetched
               if (err || !data || data.rssUrl != result.data.content.rssUrl)
                 return;
-              getFeedVideosSuccess(data);
+              getFeedVideosSuccess(data, true);
             });
 
             WidgetFeed.data = result.data;
@@ -116,15 +117,16 @@
             // bookmarks.findAndMarkAll($scope);
             viewedVideos.findAndMarkViewed(WidgetFeed.videos);
           },
-          error = function(err) {
+          error = function (err) {
             if (err && err.code !== STATUS_CODE.NOT_FOUND) {
               console.error("Error while getting data", err);
             }
           };
         DataStore.get(TAG_NAMES.YOUTUBE_INFO).then(success, error);
       };
-      var init = function(isRefresh) {
-        buildfire.getContext(function(err, result) {
+
+      var init = function (isRefresh) {
+        buildfire.getContext(function (err, result) {
           if (err) console.error(err);
           window.bfInstanceId = result.instanceId;
           WidgetFeed.pluginName = (result && result.title) || "YouTube";
@@ -136,10 +138,11 @@
       };
 
 
-      var  debounce = function(func, wait) {
+      var debounce = function (func, wait) {
         let timeout;
         return function () {
-          let context = this, args = arguments;
+          let context = this,
+            args = arguments;
           let later = function () {
             timeout = null;
             func.apply(context, args);
@@ -158,11 +161,12 @@
       };
 
       var restoreScrollPosition = function (id) {
+        console.log('restoreScrollPosition');
         let element = document.getElementById(id);
         if (!element) return console.warn(`Element with id "${id}" not found`);
         buildfire.localStorage.getItem("scrollTop", (err, scrollTop) => {
           // element.scrollTop = scrollTop || 0;
-          element.scrollTo({
+          element.scroll({
             top: scrollTop || 0,
             behavior: 'smooth'
           });
@@ -170,23 +174,27 @@
       };
 
       var handleBookmarkNav = function (videos) {
-        buildfire.deeplink.getData(function(data) {
+        buildfire.deeplink.getData(function (data) {
           if (data && data.link) {
             var linkD = data.link;
             if (linkD.indexOf("yt:video") > -1) {
               linkD = linkD.slice(linkD.lastIndexOf(":") + 1, linkD.length);
             }
-            var video = videos.filter(function(video) {
+            var video = videos.filter(function (video) {
               return video.snippet.resourceId.videoId === linkD;
             })[0];
             if (data.timeIndex) video.seekTo = data.timeIndex;
-            WidgetFeed.navigateTo(video);
+
+            if (linkD) {
+              WidgetFeed.navigateTo(video);
+            }
           }
         });
       };
 
       init();
-      $rootScope.$on("Carousel:LOADED", function() {
+
+      $rootScope.$on("Carousel:LOADED", function () {
         WidgetFeed.view = null;
         if (!WidgetFeed.view) {
           var carouselSlides = WidgetFeed.data.content.carouselImages || [];
@@ -199,7 +207,7 @@
             "min-height: " +
             window.innerWidth * 0.5625 +
             "px !important;position: relative;top: 0px;left: 0px; display: block;";
-          setTimeout(function() {
+          setTimeout(function () {
             document.getElementById("carousel").setAttribute("style", css);
           }, 50);
         }
@@ -214,46 +222,53 @@
           );
         }
       });
-      var getFeedVideosSuccess = function(result) {
+
+      var getFeedVideosSuccess = function (result, isCachedData) {
         // compare the first item of the cached feed and the fetched feed
         // return if the feed hasnt changed
-        var isUnchanged =
-          WidgetFeed.videos[0] &&
-          WidgetFeed.videos[0].id === result.items[0].id;
-        if (isUnchanged) return;
+        Buildfire.spinner.hide();
+        var isUnchanged = WidgetFeed.videos[0] && WidgetFeed.videos[0].id === result.items[0].id;
+        if (isUnchanged) {
+          if (!$scope.$$phase) $scope.$digest();
+          return;
+        };
 
         bookmarks.findAndMarkAll($scope);
         viewedVideos.findAndMarkViewed(result.items);
-        WidgetFeed.videos = WidgetFeed.videos.length
-          ? WidgetFeed.videos.concat(result.items)
-          : result.items;
+        WidgetFeed.totalResults = result.pageInfo.totalResults;
+        WidgetFeed.videos = WidgetFeed.videos.length ?
+          WidgetFeed.videos.concat(result.items) :
+          result.items;
         handleBookmarkNav(WidgetFeed.videos);
 
         // attach the feed url for diff checking later
         // save or update the cache
-        result.rssUrl = WidgetFeed.data.content.rssUrl
-          ? WidgetFeed.data.content.rssUrl
-          : false;
+        result.rssUrl = WidgetFeed.data.content.rssUrl ?
+          WidgetFeed.data.content.rssUrl :
+          false;
+
         cache.saveCache(result);
 
-        Buildfire.spinner.hide();
+        // if (isCachedData) {
+        //   getFeedVideos(currentPlayListId);
+        // }; 
 
         WidgetFeed.nextPageToken = result.nextPageToken;
         if (WidgetFeed.videos.length < result.pageInfo.totalResults) {
           WidgetFeed.busy = false;
         }
         if (!$scope.$$phase) $scope.$digest();
-        setTimeout(function() {
+        setTimeout(function () {
           restoreScrollPosition('scrollDiv');
-        }, 600);
+        }, 1);
       };
 
-      var getFeedVideosError = function(err) {
+      var getFeedVideosError = function (err) {
         Buildfire.spinner.hide();
         console.error("Error In Fetching feed Videos", err);
       };
 
-      var getFeedVideos = function(_playlistId) {
+      var getFeedVideos = function (_playlistId) {
         let apiKey = buildfire.getContext().apiKeys.googleApiKey;
 
         Buildfire.spinner.show();
@@ -265,7 +280,7 @@
         ).then(getFeedVideosSuccess, getFeedVideosError);
       };
 
-      var onUpdateCallback = function(event) {
+      var onUpdateCallback = function (event) {
         if (event && event.tag === TAG_NAMES.YOUTUBE_INFO) {
           WidgetFeed.data = event.data;
           if (!WidgetFeed.data.design) WidgetFeed.data.design = {};
@@ -314,7 +329,7 @@
             WidgetFeed.data.content &&
             WidgetFeed.data.content.playListID &&
             WidgetFeed.data.content.playListID !==
-              WidgetFeed.masterData.playListId
+            WidgetFeed.masterData.playListId
           ) {
             currentPlayListId = WidgetFeed.data.content.playListID;
             WidgetFeed.masterData.playListId = currentPlayListId;
@@ -329,7 +344,7 @@
       };
       DataStore.onUpdate().then(null, null, onUpdateCallback);
 
-      WidgetFeed.loadMore = function() {
+      WidgetFeed.loadMore = function () {
         if (WidgetFeed.busy) return;
         WidgetFeed.busy = true;
         if (currentPlayListId && currentPlayListId !== "1") {
@@ -341,15 +356,17 @@
         // }
       };
 
-      WidgetFeed.safeHtml = function(html) {
+      WidgetFeed.safeHtml = function (html) {
         if (html) {
-          var $html = $("<div />", { html: html });
-          $html.find("iframe").each(function(index, element) {
+          var $html = $("<div />", {
+            html: html
+          });
+          $html.find("iframe").each(function (index, element) {
             var src = element.src;
             src =
-              src && src.indexOf("file://") != -1
-                ? src.replace("file://", "http://")
-                : src;
+              src && src.indexOf("file://") != -1 ?
+              src.replace("file://", "http://") :
+              src;
             element.src =
               src && src.indexOf("http") != -1 ? src : "http:" + src;
           });
@@ -357,7 +374,7 @@
         }
       };
 
-      WidgetFeed.showDescription = function(description) {
+      WidgetFeed.showDescription = function (description) {
         var _retVal = false;
         if (description) {
           description = description.trim();
@@ -371,12 +388,12 @@
         return _retVal;
       };
 
-      WidgetFeed.view = function(video) {
+      WidgetFeed.view = function (video) {
         viewedVideos.markViewed($scope, video);
       };
 
-      WidgetFeed.openDetailsPage = function(video) {
-        setTimeout(function() {
+      WidgetFeed.openDetailsPage = function (video) {
+        setTimeout(function () {
           viewedVideos.markViewed($scope, video);
         }, 2000);
         video.id = video.snippet.resourceId.videoId;
@@ -387,7 +404,6 @@
         Location.goTo("#/video/" + video.snippet.resourceId.videoId);
       };
 
-      
 
       WidgetFeed.navigateTo = function (video) {
         var pluginData = WidgetFeed.data.content.pluginInstance;
@@ -402,7 +418,7 @@
       };
 
 
-      WidgetFeed.getThumbnail = function(video) {
+      WidgetFeed.getThumbnail = function (video) {
         var isTablet = $rootScope.deviceWidth >= 768;
         if (isTablet && video.snippet.thumbnails.maxres) {
           return video.snippet.thumbnails.maxres.url;
@@ -411,7 +427,7 @@
         }
       };
 
-      WidgetFeed.bookmark = function($event, video) {
+      WidgetFeed.bookmark = function ($event, video) {
         $event.stopImmediatePropagation();
         var isBookmarked = video.bookmarked ? true : false;
         if (isBookmarked) {
@@ -421,36 +437,53 @@
         }
       };
 
-      WidgetFeed.share = function($event, video) {
+      WidgetFeed.share = function ($event, video) {
         $event.stopImmediatePropagation();
+        // TODO add video meta  tags
+        let link = {};
+        link.title = video.snippet.title;
+        link.type = "website";
+        link.description = video.snippet.description;
+        link.imageUrl = WidgetFeed.getThumbnail(video);
 
-        var options = {
-          subject: video.snippet.title,
-          text: video.snippet.description,
-          // image: video.snippet.thumbnails.default.url,
-          link: "https://youtu.be/" + video.snippet.resourceId.videoId
+        link.data = {
+          "link": video.snippet.resourceId.videoId
         };
-        var callback = function(err, result) {
+
+        buildfire.deeplink.generateUrl(link, function (err, result) {
           if (err) {
-            console.warn(err);
-          }
-        };
+            console.error(err);
+          } else {
+            var options = {
+              // subject: video.snippet.title,
+              // text: video.snippet.description,
+              // image: video.snippet.thumbnails.default.url,
+              link: result.url
+            };
+            var callback = function (err, result) {
+              if (err) {
+                console.warn(err);
+              };
+            };
 
-        buildfire.device.share(options, callback);
+            buildfire.device.share(options, callback);
+          };
+        });
+
       };
 
-      WidgetFeed.updateAuthListeners = function() {
-        buildfire.auth.onLogin(function(user) {
+      WidgetFeed.updateAuthListeners = function () {
+        buildfire.auth.onLogin(function (user) {
           init(true);
         });
 
-        buildfire.auth.onLogout(function(err) {
+        buildfire.auth.onLogout(function (err) {
           console.log(err);
           init(true);
         });
       };
 
-      $rootScope.$on("ROUTE_CHANGED", function(e, data) {
+      $rootScope.$on("ROUTE_CHANGED", function (e, data) {
         WidgetFeed.data = data;
 
         WidgetFeed.updateAuthListeners();
@@ -512,7 +545,7 @@
 
         DataStore.onUpdate().then(null, null, onUpdateCallback);
 
-        buildfire.datastore.onRefresh(function() {
+        buildfire.datastore.onRefresh(function () {
           WidgetFeed.videos = [];
           WidgetFeed.busy = false;
           WidgetFeed.nextPageToken = null;
@@ -520,18 +553,18 @@
         });
       });
 
-      buildfire.datastore.onRefresh(function() {
+      buildfire.datastore.onRefresh(function () {
         WidgetFeed.videos = [];
         WidgetFeed.busy = false;
         WidgetFeed.nextPageToken = null;
         initData(true);
       });
 
-      $scope.$on("$destroy", function() {
+      $scope.$on("$destroy", function () {
         DataStore.clearListener();
       });
 
-      $scope.$on("$viewContentLoaded", function() {
+      $scope.$on("$viewContentLoaded", function () {
         buildfire.appearance.ready();
       });
 

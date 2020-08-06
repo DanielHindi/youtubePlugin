@@ -227,186 +227,63 @@
 
       ContentHome.validateRssLink = function() {
         let apiKey = buildfire.getContext().apiKeys.googleApiKey;
-        switch (ContentHome.contentType) {
-          case CONTENT_TYPE.SINGLE_VIDEO:
-            var videoID = Utils.extractSingleVideoId(ContentHome.rssLink);
-            if (videoID) {
-              $http
-                .get(
-                  "https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" +
-                    videoID +
-                    "&key=" +
-                    apiKey,
-                  { cache: true }
-                )
-                .success(function(response) {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
-                  if (response.items && response.items.length) {
-                    ContentHome.validLinkSuccess = true;
-                    $timeout(function() {
-                      ContentHome.validLinkSuccess = false;
-                    }, 5000);
-                    ContentHome.validLinkFailure = false;
-                    ContentHome.data.content.rssUrl = ContentHome.rssLink;
-                    ContentHome.data.content.type = ContentHome.contentType;
-                    ContentHome.data.content.videoID = videoID;
-                    ContentHome.data.content.playListID = null;
-                  } else {
-                    ContentHome.validLinkFailure = true;
-                    $timeout(function() {
-                      ContentHome.validLinkFailure = false;
-                    }, 5000);
+      
+          var playlistId = Utils.extractPlaylistId(ContentHome.rssLink);
+          if (playlistId) {
+            $http
+              .post(PROXY_SERVER.serverUrl + "/videos", {
+                playlistId: playlistId,
+                countLimit: 1,
+                apiKey: apiKey
+              })
+              .success(function(response) {
+                ContentHome.failureMessage =
+                  "Error. Please check and try again";
+                  
+                if (response && response.videos && response.videos.items) {
+                  ContentHome.validLinkSuccess = true;
+                  $timeout(function() {
                     ContentHome.validLinkSuccess = false;
-                  }
-                })
-                .error(function() {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
+                  }, 5000);
+                  ContentHome.validLinkFailure = false;
+                  ContentHome.data.content.rssUrl = ContentHome.rssLink;
+                  ContentHome.data.content.type = ContentHome.contentType;
+                  if (response)
+                    ContentHome.data.content.playListID = playlistId;
+                  ContentHome.data.content.videoID = null;
+                  searchEngine.indexFeed(playlistId);
+                } else {
+                  console.log('Something went wrong with URL', response);
                   ContentHome.validLinkFailure = true;
                   $timeout(function() {
                     ContentHome.validLinkFailure = false;
                   }, 5000);
                   ContentHome.validLinkSuccess = false;
-                });
-            } else {
-              if (Utils.extractChannelId(ContentHome.rssLink)) {
-                ContentHome.failureMessage =
-                  "Seems like you have entered feed url. Please choose correct option to validate url.";
-              }
-              ContentHome.validLinkFailure = true;
-              $timeout(function() {
-                ContentHome.validLinkFailure = false;
+                }
+              })
+              .error(function(err) {
+                console.error('Error ', err);
                 ContentHome.failureMessage =
                   "Error. Please check and try again";
-              }, 5000);
-              ContentHome.validLinkSuccess = false;
+                ContentHome.validLinkFailure = true;
+                $timeout(function() {
+                  ContentHome.validLinkFailure = false;
+                }, 5000);
+                ContentHome.validLinkSuccess = false;
+              });
+          } else {
+            if (Utils.extractSingleVideoId(ContentHome.rssLink)) {
+              ContentHome.failureMessage =
+                "Seems like you have entered single video url. Please choose correct option to validate url.";
             }
-            break;
-          case CONTENT_TYPE.CHANNEL_FEED:
-            var feedIdAndType = Utils.extractChannelId(ContentHome.rssLink);
-            var feedApiUrl = null;
-            if (feedIdAndType) {
-              if (feedIdAndType.channel)
-                feedApiUrl =
-                  "https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=" +
-                  feedIdAndType.channel +
-                  "&key=" +
-                  apiKey;
-              else if (feedIdAndType.user || feedIdAndType.c)
-                feedApiUrl =
-                  "https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=" +
-                  (feedIdAndType.user || feedIdAndType.c) +
-                  "&key=" +
-                  apiKey;
-              $http
-                .get(feedApiUrl, { cache: true })
-                .success(function(response) {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
-                  if (response.items && response.items.length) {
-                    ContentHome.validLinkSuccess = true;
-                    $timeout(function() {
-                      ContentHome.validLinkSuccess = false;
-                    }, 5000);
-                    ContentHome.validLinkFailure = false;
-                    ContentHome.data.content.rssUrl = ContentHome.rssLink;
-                    ContentHome.data.content.type = ContentHome.contentType;
-                    if (
-                      response.items[0].contentDetails &&
-                      response.items[0].contentDetails.relatedPlaylists &&
-                      response.items[0].contentDetails.relatedPlaylists.uploads
-                    )
-                      ContentHome.data.content.playListID =
-                        response.items[0].contentDetails.relatedPlaylists.uploads;
-                    ContentHome.data.content.videoID = null;
-                    searchEngine.indexFeed(ContentHome.data.content.playListID);
-                  } else {
-                    ContentHome.validLinkFailure = true;
-                    $timeout(function() {
-                      ContentHome.validLinkFailure = false;
-                    }, 5000);
-                    ContentHome.validLinkSuccess = false;
-                  }
-                })
-                .error(function() {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
-                  ContentHome.validLinkFailure = true;
-                  $timeout(function() {
-                    ContentHome.validLinkFailure = false;
-                  }, 5000);
-                  ContentHome.validLinkSuccess = false;
-                });
-            } else {
-              if (Utils.extractSingleVideoId(ContentHome.rssLink)) {
-                ContentHome.failureMessage =
-                  "Seems like you have entered single video url. Please choose correct option to validate url.";
-              }
-              ContentHome.validLinkFailure = true;
-              $timeout(function() {
-                ContentHome.validLinkFailure = false;
-                ContentHome.failureMessage =
-                  "Error. Please check and try again";
-              }, 5000);
-              ContentHome.validLinkSuccess = false;
-            }
-            break;
-          case CONTENT_TYPE.PLAYLIST_FEED:
-            var playlistId = Utils.extractPlaylistId(ContentHome.rssLink);
-            if (playlistId) {
-              $http
-                .post(PROXY_SERVER.serverUrl + "/videos", {
-                  playlistId: playlistId,
-                  countLimit: 1,
-                  apiKey: apiKey
-                })
-                .success(function(response) {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
-                  if (response && response.videos && response.videos.items) {
-                    ContentHome.validLinkSuccess = true;
-                    $timeout(function() {
-                      ContentHome.validLinkSuccess = false;
-                    }, 5000);
-                    ContentHome.validLinkFailure = false;
-                    ContentHome.data.content.rssUrl = ContentHome.rssLink;
-                    ContentHome.data.content.type = ContentHome.contentType;
-                    if (response)
-                      ContentHome.data.content.playListID = playlistId;
-                    ContentHome.data.content.videoID = null;
-                    searchEngine.indexFeed(playlistId);
-                  } else {
-                    ContentHome.validLinkFailure = true;
-                    $timeout(function() {
-                      ContentHome.validLinkFailure = false;
-                    }, 5000);
-                    ContentHome.validLinkSuccess = false;
-                  }
-                })
-                .error(function() {
-                  ContentHome.failureMessage =
-                    "Error. Please check and try again";
-                  ContentHome.validLinkFailure = true;
-                  $timeout(function() {
-                    ContentHome.validLinkFailure = false;
-                  }, 5000);
-                  ContentHome.validLinkSuccess = false;
-                });
-            } else {
-              if (Utils.extractSingleVideoId(ContentHome.rssLink)) {
-                ContentHome.failureMessage =
-                  "Seems like you have entered single video url. Please choose correct option to validate url.";
-              }
-              ContentHome.validLinkFailure = true;
-              $timeout(function() {
-                ContentHome.validLinkFailure = false;
-                ContentHome.failureMessage =
-                  "Error. Please check and try again";
-              }, 5000);
-              ContentHome.validLinkSuccess = false;
-            }
-        }
+            ContentHome.validLinkFailure = true;
+            $timeout(function() {
+              ContentHome.validLinkFailure = false;
+              ContentHome.failureMessage =
+                "Error. Please check and try again";
+            }, 5000);
+            ContentHome.validLinkSuccess = false;
+          }
       };
 
       $scope.onSelectFeature = function() {
@@ -421,7 +298,7 @@
 
       ContentHome.clearData = function() {
         if (!ContentHome.rssLink) {
-          ContentHome.contentType = ContentHome.CONTENT_TYPE.CHANNEL_FEED;
+          ContentHome.contentType = ContentHome.CONTENT_TYPE.PLAYLIST_FEED;
           ContentHome.data.content.rssUrl = null;
           ContentHome.data.content.type = ContentHome.contentType;
           ContentHome.data.content.videoID = null;
