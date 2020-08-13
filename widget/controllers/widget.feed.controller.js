@@ -66,7 +66,7 @@
        */
       var initData = function (isRefresh) {
         var success = function (result) {
-            cache.getCache(function(err, data) {
+            cache.getCache(function (err, data) {
               // if the rss feed url has changed, ignore the cache and update when fetched
               if (err || !data || data.rssUrl != result.data.content.rssUrl)
                 return;
@@ -157,7 +157,7 @@
         if (!element) return console.warn(`Element with id "${id}" not found`);
         element.addEventListener("scroll", debounce(() => {
           buildfire.localStorage.setItem("scrollTop", element.scrollTop);
-        }, 200));
+        }, 500));
       };
 
       var restoreScrollPosition = function (id) {
@@ -184,8 +184,9 @@
               return video.snippet.resourceId.videoId === linkD;
             })[0];
             if (data.timeIndex) video.seekTo = data.timeIndex;
-
-            if (linkD) {
+            
+            var backNavigation = buildfire.navigation.getBackNavigationInstanceId();
+            if (linkD && !backNavigation) {
               WidgetFeed.navigateTo(video);
             }
           }
@@ -243,15 +244,22 @@
 
         // attach the feed url for diff checking later
         // save or update the cache
-        result.rssUrl = WidgetFeed.data.content.rssUrl ?
-          WidgetFeed.data.content.rssUrl :
-          false;
 
-        cache.saveCache(result);
+        if (isCachedData) {
+          getFeedVideos(currentPlayListId).then((newResult) => {
+            Buildfire.spinner.hide();
+            newResult.rssUrl = WidgetFeed.data.content.rssUrl ? WidgetFeed.data.content.rssUrl : false;
+            cache.saveCache(newResult);
+          }, getFeedVideosError);
 
-        // if (isCachedData) {
-        //   getFeedVideos(currentPlayListId);
-        // }; 
+        } else {
+          cache.getCache(function (err, data) {
+            if (err || !data || data.rssUrl !== WidgetFeed.data.content.rssUrl) {
+              result.rssUrl = WidgetFeed.data.content.rssUrl ? WidgetFeed.data.content.rssUrl : false;
+              cache.saveCache(result);
+            }
+          });
+        };
 
         WidgetFeed.nextPageToken = result.nextPageToken;
         if (WidgetFeed.videos.length < result.pageInfo.totalResults) {
@@ -272,12 +280,12 @@
         let apiKey = buildfire.getContext().apiKeys.googleApiKey;
 
         Buildfire.spinner.show();
-        YoutubeApi.getFeedVideos(
+        return YoutubeApi.getFeedVideos(
           _playlistId,
           VIDEO_COUNT.LIMIT,
           WidgetFeed.nextPageToken,
           apiKey
-        ).then(getFeedVideosSuccess, getFeedVideosError);
+        );
       };
 
       var onUpdateCallback = function (event) {
@@ -322,7 +330,7 @@
             WidgetFeed.data.content.playListID
           ) {
             currentPlayListId = WidgetFeed.data.content.playListID;
-            getFeedVideos(WidgetFeed.data.content.playListID);
+            getFeedVideos(WidgetFeed.data.content.playListID).then(getFeedVideosSuccess, getFeedVideosError);
           }
 
           if (
@@ -348,7 +356,7 @@
         if (WidgetFeed.busy) return;
         WidgetFeed.busy = true;
         if (currentPlayListId && currentPlayListId !== "1") {
-          getFeedVideos(currentPlayListId);
+          getFeedVideos(currentPlayListId).then(getFeedVideosSuccess, getFeedVideosError);
         };
         // else {
         //   if (WidgetFeed.data.content.videoID)
@@ -505,7 +513,7 @@
           WidgetFeed.nextPageToken = null;
           WidgetFeed.videos = [];
           WidgetFeed.masterData.playListId = WidgetFeed.data.content.playListID;
-          getFeedVideos(WidgetFeed.data.content.playListID);
+          getFeedVideos(WidgetFeed.data.content.playListID.then(getFeedVideosSuccess, getFeedVideosError));
         }
 
         if (WidgetFeed.data.design && WidgetFeed.data.design.itemListBgImage) {
@@ -521,7 +529,7 @@
         ) {
           currentPlayListId = WidgetFeed.data.content.playListID;
           WidgetFeed.masterData.playListId = currentPlayListId;
-          getFeedVideos(WidgetFeed.data.content.playListID);
+          getFeedVideos(WidgetFeed.data.content.playListID).then(getFeedVideosSuccess, getFeedVideosError);
         } else {
           bookmarks.findAndMarkAll($scope);
         }
